@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model TradeRecord {
+  id          String    @id @default(cuid())
+  symbol      String
+  side        String    // buy | sell
+  mode        String    // PAPER | LIVE
+  entryPrice  Float
+  exitPrice   Float?
+  size        Int
+  grossPnl    Float     @default(0)
+  fees        Float     @default(0)
+  netPnl      Float     @default(0)
+  netPnlPct   Float     @default(0)
+  status      String    @default("open") // open | closed
+  reasoning   String    @db.Text
+  confidence  Float
+  openedAt    DateTime  @default(now())
+  closedAt    DateTime?
+
+  signals     SignalLog[]
+
+  @@index([symbol, status])
+  @@index([openedAt])
+}
+
+model SignalLog {
+  id                String   @id @default(cuid())
+  action            String   // OPEN | HOLD | CLOSE | NO_TRADE
+  direction         String   // LONG | SHORT | NEUTRAL
+  confidence        Float
+  entryPrice        Float?
+  stopLoss          Float?
+  takeProfit1       Float?
+  takeProfit2       Float?
+  takeProfit3       Float?
+  sizeFraction      Float
+  useMarketOrder    Boolean
+  reasoning         String   @db.Text
+  latencyMs         Int
+  snapshotTimestamp DateTime
+  createdAt         DateTime @default(now())
+
+  tradeRecord       TradeRecord? @relation(fields: [tradeRecordId], references: [id])
+  tradeRecordId     String?
+
+  @@index([createdAt])
+}
+
+model StopAdjustment {
+  id            String   @id @default(cuid())
+  tradeRecordId String
+  oldStop       Float
+  newStop       Float
+  triggerPrice  Float
+  armed         Boolean
+  createdAt     DateTime @default(now())
+
+  @@index([tradeRecordId])
+}
